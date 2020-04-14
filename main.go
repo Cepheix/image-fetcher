@@ -9,7 +9,9 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/gosuri/uiprogress"
 	"github.com/jessevdk/go-flags"
 )
 
@@ -34,6 +36,13 @@ func main() {
 		panic(readingError)
 	}
 
+	count := len(urls)
+	uiprogress.Start()
+	bar := uiprogress.AddBar(count).AppendCompleted().PrependElapsed()
+	bar.PrependFunc(func(b *uiprogress.Bar) string {
+		return fmt.Sprintf("Image (%d/%d)", b.Current(), count)
+	})
+
 	work := make(chan string)
 	shutdown := make(chan bool)
 	pool := runtime.NumCPU()
@@ -41,7 +50,7 @@ func main() {
 	wg.Add(pool)
 
 	for i := 0; i < pool; i++ {
-		go downloadUrls(work, shutdown, &wg, options.DestinationFolder)
+		go downloadUrls(work, shutdown, &wg, bar, options.DestinationFolder)
 	}
 
 	for _, url := range urls {
@@ -50,7 +59,9 @@ func main() {
 
 	close(shutdown)
 
+	time.Sleep(time.Second) // wait for a second for all the go routines to finish
 	wg.Wait()
+	uiprogress.Stop()
 }
 
 func readLines(path string) ([]string, error) {
@@ -68,11 +79,12 @@ func readLines(path string) ([]string, error) {
 	return lines, scanner.Err()
 }
 
-func downloadUrls(urls chan string, shutdown chan bool, wg *sync.WaitGroup, downloadFolder string) {
+func downloadUrls(urls chan string, shutdown chan bool, wg *sync.WaitGroup, progressBar *uiprogress.Bar, downloadFolder string) {
 	for {
 		select {
 		case url := <-urls:
 			downloadUrl(url, downloadFolder)
+			progressBar.Incr()
 		case <-shutdown:
 			wg.Done()
 			return
@@ -81,15 +93,11 @@ func downloadUrls(urls chan string, shutdown chan bool, wg *sync.WaitGroup, down
 }
 
 func downloadUrl(url, downloadFolder string) {
-	fmt.Println("Downloading: ", url)
-
 	response, responseError := http.Get(url)
 
 	if responseError != nil {
 		fmt.Println("Error during downling", url, responseError.Error())
 	}
-
-	fmt.Println("finished")
 
 	defer response.Body.Close()
 

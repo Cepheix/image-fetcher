@@ -20,6 +20,14 @@ type Options struct {
 	DestinationFolder string `short:"d" long:"destination-folder" description:"Destination folder where to put all images"`
 }
 
+type DownloadWork struct {
+	downloadFolder string
+	work           <-chan string
+	shutdown       <-chan bool
+	wg             *sync.WaitGroup
+	progressBar    *uiprogress.Bar
+}
+
 func main() {
 	var options Options
 	_, optionsErr := flags.Parse(&options)
@@ -49,8 +57,14 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(pool)
 
+	downloadWork := DownloadWork{
+		downloadFolder: options.DestinationFolder,
+		work:           work,
+		shutdown:       shutdown,
+		wg:             &wg, progressBar: bar}
+
 	for i := 0; i < pool; i++ {
-		go downloadUrls(work, shutdown, &wg, bar, options.DestinationFolder)
+		go downloadUrls(downloadWork)
 	}
 
 	for _, url := range urls {
@@ -79,14 +93,14 @@ func readLines(path string) ([]string, error) {
 	return lines, scanner.Err()
 }
 
-func downloadUrls(urls <-chan string, shutdown <-chan bool, wg *sync.WaitGroup, progressBar *uiprogress.Bar, downloadFolder string) {
+func downloadUrls(downloadWork DownloadWork) {
 	for {
 		select {
-		case url := <-urls:
-			downloadUrl(url, downloadFolder)
-			progressBar.Incr()
-		case <-shutdown:
-			wg.Done()
+		case url := <-downloadWork.work:
+			downloadUrl(url, downloadWork.downloadFolder)
+			downloadWork.progressBar.Incr()
+		case <-downloadWork.shutdown:
+			downloadWork.wg.Done()
 			return
 		}
 	}

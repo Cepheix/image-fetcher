@@ -93,6 +93,14 @@ func downloadUrls(urls chan string, shutdown chan bool, wg *sync.WaitGroup, prog
 }
 
 func downloadUrl(url, downloadFolder string) {
+
+	elements := []string{downloadFolder, buildFileName(url)}
+	fullFilePath := strings.Join(elements, "/")
+
+	if fileExists(fullFilePath) {
+		return
+	}
+
 	response, responseError := http.Get(url)
 
 	if responseError != nil {
@@ -101,8 +109,6 @@ func downloadUrl(url, downloadFolder string) {
 
 	defer response.Body.Close()
 
-	elements := []string{downloadFolder, buildFileName(url)}
-	fullFilePath := strings.Join(elements, "/")
 	file, fileError := os.Create(fullFilePath)
 
 	if fileError != nil {
@@ -122,4 +128,12 @@ func buildFileName(url string) string {
 	segments := strings.Split(url, "/")
 
 	return segments[len(segments)-1]
+}
+
+func fileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
 }

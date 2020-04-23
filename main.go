@@ -79,7 +79,7 @@ func readLines(path string) ([]string, error) {
 	return lines, scanner.Err()
 }
 
-func downloadUrls(urls chan string, shutdown chan bool, wg *sync.WaitGroup, progressBar *uiprogress.Bar, downloadFolder string) {
+func downloadUrls(urls <-chan string, shutdown <-chan bool, wg *sync.WaitGroup, progressBar *uiprogress.Bar, downloadFolder string) {
 	for {
 		select {
 		case url := <-urls:

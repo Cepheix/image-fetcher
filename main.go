@@ -141,7 +141,7 @@ func downloadUrl(url, downloadFolder string) {
 func buildFileName(url string) string {
 	segments := strings.Split(url, "/")
 
-	return segments[len(segments)-1]
+	return segments[len(segments)-2] + "-" + segments[len(segments)-1]
 }
 
 func fileExists(filename string) bool {

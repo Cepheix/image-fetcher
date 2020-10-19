@@ -3,11 +3,8 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
@@ -18,14 +15,6 @@ import (
 type Options struct {
 	SourceFile        string `short:"s" long:"source-file" description:"Source file containing all image urls"`
 	DestinationFolder string `short:"d" long:"destination-folder" description:"Destination folder where to put all images"`
-}
-
-type DownloadWork struct {
-	downloadFolder string
-	work           <-chan string
-	shutdown       <-chan bool
-	wg             *sync.WaitGroup
-	progressBar    *uiprogress.Bar
 }
 
 func main() {
@@ -91,63 +80,4 @@ func readLines(path string) ([]string, error) {
 		lines = append(lines, scanner.Text())
 	}
 	return lines, scanner.Err()
-}
-
-func downloadUrls(downloadWork DownloadWork) {
-	for {
-		select {
-		case url := <-downloadWork.work:
-			downloadUrl(url, downloadWork.downloadFolder)
-			downloadWork.progressBar.Incr()
-		case <-downloadWork.shutdown:
-			downloadWork.wg.Done()
-			return
-		}
-	}
-}
-
-func downloadUrl(url, downloadFolder string) {
-
-	elements := []string{downloadFolder, buildFileName(url)}
-	fullFilePath := strings.Join(elements, "/")
-
-	if fileExists(fullFilePath) {
-		return
-	}
-
-	response, responseError := http.Get(url)
-
-	if responseError != nil {
-		fmt.Println("Error during downling", url, responseError.Error())
-	}
-
-	defer response.Body.Close()
-
-	file, fileError := os.Create(fullFilePath)
-
-	if fileError != nil {
-		fmt.Println("Error during creation of the file", fullFilePath, fileError.Error())
-	}
-
-	defer file.Close()
-
-	_, saveError := io.Copy(file, response.Body)
-
-	if saveError != nil {
-		fmt.Println("Error during saving image", fullFilePath, fileError.Error())
-	}
-}
-
-func buildFileName(url string) string {
-	segments := strings.Split(url, "/")
-
-	return segments[len(segments)-2] + "-" + segments[len(segments)-1]
-}
-
-func fileExists(filename string) bool {
-	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return !info.IsDir()
 }

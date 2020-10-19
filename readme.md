@@ -1,2 +1,6 @@
-go run main.go -s images.txt -d images
-go run main.go -s new-images.txt -d images
+to run
+```sh
+$ go build
+$ ./image-fetcher.exe -s images.txt -d images
+$ ./image-fetcher.exe -s new-images.txt -d images
+```

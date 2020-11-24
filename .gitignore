@@ -15,3 +15,5 @@
 # vendor/
 
 images/
+new-images.txt
+image-fetcher
